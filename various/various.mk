@@ -1,0 +1,2 @@
+VARIOUSINC = various/
+VARIOUSSRC = 

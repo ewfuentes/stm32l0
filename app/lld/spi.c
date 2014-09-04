@@ -39,12 +39,21 @@ uint32_t spiSendReceive(SPI_TypeDef *spi, uint32_t numBytes,
                         uint8_t *txBuf, uint8_t *rxBuf, 
                         GPIO_TypeDef *slavePort, uint8_t slavePinNum) {
     assert((spi == SPI1) || spi == SPI2);
-    assert(txBuf != NULL);
-    assert(rxBuf != NULL);
     assert(numBytes > 0);
     assert(slavePort == GPIOA || slavePort == GPIOB || slavePort == GPIOC ||
            slavePort == GPIOD || slavePort == GPIOH);
     assert(slavePinNum < 16);
+
+    uint8_t ignoreRx = 0;
+    uint8_t ignoreTx = 0;
+
+    if (rxBuf == NULL) {
+        ignoreRx = 1;
+    }
+
+    if (txBuf == NULL) {
+        ignoreTx = 1;
+    }
 
     gpioResetPin(slavePort, slavePinNum);
     
@@ -52,13 +61,23 @@ uint32_t spiSendReceive(SPI_TypeDef *spi, uint32_t numBytes,
     
     uint32_t numTxBytes = 0;
     uint32_t numRxBytes = 0;
-    while(numTxBytes < numBytes /* && numRxBytes < numBytes */) {
-        if (spi->SR & SPI_SR_TXE) {
+    uint8_t temp = 0;
+    while(numTxBytes < numBytes && numRxBytes < numBytes) {
+
+        if ((spi->SR & SPI_SR_TXE) && !ignoreTx && (numTxBytes < numBytes)) {
             spi->DR = txBuf[numTxBytes++];
+        } else if ((spi->SR & SPI_SR_TXE) && (numTxBytes < numBytes)) {
+            spi->DR = 0; // Send a zero if there is no tx buf
+            numTxBytes++;
         }
-        // if (spi->SR & SPI_SR_RXNE) {
-        //     rxBuf[numRxBytes++] = spi->DR;
-        // }
+
+        if ((spi->SR & SPI_SR_RXNE) && !ignoreRx && (numRxBytes < numBytes)) {
+            rxBuf[numRxBytes++] = spi->DR;
+        } else if ((spi->SR & SPI_SR_RXNE) && (numRxBytes < numBytes)) {
+            numRxBytes++;
+            temp = spi->DR; //Read to clear the RXNE flag
+            (void)temp;
+        }
     }
 
     while(!(spi->SR & SPI_SR_TXE));

@@ -1,0 +1,2 @@
+VARIOUSINC = app/various/
+VARIOUSSRC = 

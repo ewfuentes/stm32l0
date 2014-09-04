@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "lld.h"
+#include "gde021a1.h"
 
 
 #define RED_LED GPIOA, 5
@@ -53,8 +54,6 @@ int main() {
     gpioOutputSpeed(SPI_MISO, gpioSpeed_high);
     gpioOutputSpeed(SPI_MOSI, gpioSpeed_high);
 
-
-
     gpioSetPin(SPI_SS);
 
     gpioAlternate(SPI_SCK, 0);
@@ -65,6 +64,12 @@ int main() {
 
     uint8_t rxBuffer[4] = {0};
     uint8_t txBuffer[4] = {0xAA,0x55, 0x55, 0xAA};
+
+    gde021a1Init();
+
+    gde021a1Test();
+    
+
     while(1){
         delay(500);
         gpioTogglePin(GREEN_LED);

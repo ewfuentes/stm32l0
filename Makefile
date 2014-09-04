@@ -5,12 +5,10 @@ OBJDIR = $(OUTDIR)obj/
 LSTDIR = $(OUTDIR)lst/
 
 include lib/lib.mk
-include lld/lld.mk
 include app/app.mk
-include various/various.mk
 
-SRCS = $(APPSRC) $(LIBSRC) $(LLDSRC) $(VARIOUSSRC)
-INCS = $(APPINC) $(LIBINC) $(LLDINC) $(VARIOUSINC)
+SRCS = $(APPSRC) $(LIBSRC)
+INCS = $(APPINC) $(LIBINC)
 ASSRCS = $(LIBAS)
 
 TARGET = arm-none-eabi-

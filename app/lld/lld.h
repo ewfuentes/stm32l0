@@ -1,6 +1,9 @@
 #ifndef LLD_H
 #define LLD_H
 
+#include <stdlib.h>
+#include <string.h>
+
 #include "stm32l053xx.h"
 #include "assert.h"
 #include "rcc.h"

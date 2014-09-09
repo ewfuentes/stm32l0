@@ -1,2 +1,3 @@
 LLDINC = app/lld/
-LLDSRC = app/lld/spi.c
+LLDSRC = app/lld/spi.c \
+         app/lld/i2c.c

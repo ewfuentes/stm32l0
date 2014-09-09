@@ -8,10 +8,9 @@
 #define RED_LED GPIOA, 5
 #define GREEN_LED GPIOB, 4
 
-#define SPI_SS GPIOB, 12
-#define SPI_SCK GPIOB, 13
-#define SPI_MISO GPIOB, 14
-#define SPI_MOSI GPIOB, 15
+#define COLOR_SCL GPIOB, 6
+#define COLOR_SDA GPIOB, 7
+#define COLOR_INT GPIOB, 12
 
 static volatile uint32_t delayTime = 0;
 volatile uint32_t ticks = 0;
@@ -45,26 +44,6 @@ int main() {
     gpioPinMode(GREEN_LED, gpioMode_output);
     gpioPinMode(RED_LED, gpioMode_output);
 
-    gpioPinMode(SPI_MISO, gpioMode_alternate);
-    gpioPinMode(SPI_MOSI, gpioMode_alternate);
-    gpioPinMode(SPI_SCK, gpioMode_alternate);
-    gpioPinMode(SPI_SS, gpioMode_output);
-
-    gpioOutputSpeed(SPI_SCK, gpioSpeed_high);
-    gpioOutputSpeed(SPI_MISO, gpioSpeed_high);
-    gpioOutputSpeed(SPI_MOSI, gpioSpeed_high);
-
-    gpioSetPin(SPI_SS);
-
-    gpioAlternate(SPI_SCK, 0);
-    gpioAlternate(SPI_MISO, 0);
-    gpioAlternate(SPI_MOSI, 0);
-    
-    spiInit(SPI2, 500000);
-
-    uint8_t rxBuffer[4] = {0};
-    uint8_t txBuffer[4] = {0xAA,0x55, 0x55, 0xAA};
-
     gde021a1Init();
 
     gde021a1Test();
@@ -73,8 +52,6 @@ int main() {
     while(1){
         delay(500);
         gpioTogglePin(GREEN_LED);
-        // memcpy(txBuffer, (const void *) &ticks, 4);
-        spiSendReceive(SPI2, 4, txBuffer, rxBuffer, SPI_SS);
     }
 
     return 0;

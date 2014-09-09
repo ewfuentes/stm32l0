@@ -32,6 +32,7 @@ void spiInit(SPI_TypeDef *spi, uint32_t baudRate) {
 
     // Reset control register and set the baudrate
     spi->CR1 = 0;
+    // Set Master Mode and Software control of slave select
     spi->CR1 |= d << 3 | SPI_CR1_MSTR | SPI_CR1_SSM | SPI_CR1_SSI;
 }
 

@@ -29,6 +29,12 @@ typedef enum {
     gpioPullUpDown_count,
 }gpioPullUpDown_t;
 
+typedef enum {
+    gpioOutputType_pushPull,
+    gpioOutputType_openDrain,
+    gpioOutputType_count
+} gpioOutputType_t;
+
 static inline void gpioSetPin(GPIO_TypeDef *gpio, uint8_t pin) {
     assert(isGPIO(gpio));
     assert(pin < 16);
@@ -106,6 +112,20 @@ static inline void gpioPullUpDown(GPIO_TypeDef *gpio, uint8_t pin,
 
     gpio->PUPDR &= ~(3 << (2*pin));
     gpio->PUPDR |= mode << (2*pin);
+}
+
+static inline void gpioOutputType(GPIO_TypeDef *gpio, uint8_t pin,
+                                    gpioOutputType_t mode) {
+    assert(isGPIO(gpio));
+    assert(pin < 16);
+    assert(mode < gpioOutputType_count);
+
+    uint32_t mask = 1 << pin;
+    if (mode == gpioOutputType_pushPull) {
+        gpio->OTYPER &= ~mask;
+    } else if (mode == gpioOutputType_openDrain){
+        gpio->OTYPER |= mask;
+    }
 }
 
 #endif

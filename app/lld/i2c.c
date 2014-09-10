@@ -9,8 +9,8 @@ static uint32_t setupTiming(i2cSpeed_t spd, uint32_t clockFreq) {
     uint32_t presc = 0;
     uint32_t sdadel = 2;
     uint32_t scldel = 2;
-    uint32_t scll = 9;
-    uint32_t sclh = 9;
+    uint32_t scll = 6;
+    uint32_t sclh = 7;
 
     return  presc << 28 |
             scldel << 20 |
@@ -62,36 +62,113 @@ uint32_t i2cWrite(I2C_TypeDef *i2c, uint32_t addr, uint8_t *txBuffer,
     assert(txBuffer != NULL);
     assert(len > 0);
 
+    uint32_t numTxBytes = 0;
+
     i2c->CR1 &= ~I2C_CR1_PE;
     i2c->CR2 = 0;
 
-    i2c->CR2 = i2cSetup(i2c, addr, I2C_WRITE);
+    i2c->CR2 = i2cSetup(addr, I2C_WRITE);
 
     if (len > 0xFF) {
         i2c->CR2 |= 0x00FF0000 | I2C_CR2_RELOAD; 
     } else {
-        i2c->CR2 |= ((len & 0xFF) << 16);
+        i2c->CR2 |= ((len & 0xFF) << 16) | I2C_CR2_AUTOEND;
     }
     i2c->CR1 |= I2C_CR1_PE;
     i2c->CR2 |= I2C_CR2_START;
     while(i2c->CR2 & I2C_CR2_START);
-    uint32_t numTxBytes = 0;
-    while (numTxBytes < len) {
+    uint8_t done = 0;
+    uint32_t i = 0;
+    while (!done && i < 0x00000FFF) {
+        i++;
         if (i2c->ISR & I2C_ISR_NACKF) {
             // Was not acknowledged, disable device and exit
-            i2c->CR1 &= ~I2C_CR1_PE;
-            return numTxBytes;
+            done = 1;
         }
 
         if (i2c->ISR & I2C_ISR_TXIS) {
-            // Device acknowledged and we must send the next byte
-            i2c->TXDR = txBuffer[numTxBytes++];
-        } else {
-            continue;
-        }
-    }
-    
+           // Device acknowledged and we must send the next byte
+            if (numTxBytes < len){
+                i2c->TXDR = txBuffer[numTxBytes++];
+            }
 
+            assert(numTxBytes <= len);
+            i = 0;
+        }
+
+        if (i2c->ISR & I2C_ISR_TC) {
+            done = 1;
+        }
+
+        if (i2c->ISR & I2C_ISR_TCR) {
+            i = 0;
+            if ((len - numTxBytes) > 0xFF) {
+                i2c->CR2 |= 0x00FF0000 | I2C_CR2_RELOAD;
+            } else {
+                i2c->CR2 &= ~(0x00FF0000 | I2C_CR2_RELOAD);
+                i2c->CR2 |= ((len - numTxBytes) & 0xFF) << 16 |
+                            I2C_CR2_AUTOEND;
+            }
+        }
+
+    }
+    i2c->CR1 &= ~I2C_CR1_PE;
+    return numTxBytes;
 }
 
-// uint8_t i2cRead(I2C_TypeDef *i2c, uint8_t addr, uint8_t )
+uint32_t i2cRead(I2C_TypeDef *i2c, uint8_t addr, uint8_t *rxBuffer,
+                 uint32_t numBytes) {
+    assert(i2c == I2C1 || i2c == I2C2);
+    assert(rxBuffer != NULL);
+    assert(numBytes > 0);
+
+    uint32_t numRxBytes = 0;
+
+    i2c->CR1 &= ~I2C_CR1_PE;
+    i2c->CR2 = 0;
+
+    i2c->CR2 = i2cSetup(addr, I2C_READ);
+
+    if (numBytes > 0xFF) {
+        i2c->CR2 |= 0x00FF0000 | I2C_CR2_RELOAD;
+    } else {
+        i2c->CR2 |= ((numBytes & 0xFF) << 16) | I2C_CR2_AUTOEND;
+    }
+    i2c->CR1 |= I2C_CR1_PE;
+    i2c->CR2 |= I2C_CR2_START;
+
+    while(i2c->CR2 & I2C_CR2_START);
+    uint8_t done = 0;
+    uint32_t i = 0;
+    while (!done && i < 0x00000FFF) {
+        i++;
+
+        if (i2c->ISR & I2C_ISR_RXNE) {
+           // Device acknowledged and we must send the next byte
+            if (numRxBytes < numBytes){
+                rxBuffer[numRxBytes++] = i2c->RXDR;
+            }
+
+            assert(numRxBytes <= numBytes);
+            i = 0;
+        }
+
+        if (i2c->ISR & I2C_ISR_TC) {
+            done = 1;
+        }
+
+        if (i2c->ISR & I2C_ISR_TCR) {
+            i = 0;
+            if ((numBytes - numRxBytes) > 0xFF) {
+                i2c->CR2 |= 0x00FF0000 | I2C_CR2_RELOAD;
+            } else {
+                i2c->CR2 &= ~(0x00FF0000 | I2C_CR2_RELOAD);
+                i2c->CR2 |= ((numBytes - numRxBytes) & 0xFF) << 16 |
+                            I2C_CR2_AUTOEND;
+            }
+        }
+
+    }
+    i2c->CR1 &= ~I2C_CR1_PE;
+    return numRxBytes;
+}

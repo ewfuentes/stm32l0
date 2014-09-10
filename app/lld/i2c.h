@@ -15,7 +15,12 @@ void i2cInit(I2C_TypeDef *i2c, i2cSpeed_t spd);
 #define I2C_7BIT_ADDR (0 << 31)
 #define I2C_10BIT_ADDR (1 << 31)
 
-int8_t i2cTransmit(I2C_TypeDef *i2c, uint8_t addr, uint8_t *txBuffer, 
+// Returns number of bytes written
+uint32_t i2cWrite(I2C_TypeDef *i2c, uint32_t addr, uint8_t *txBuffer,
                     uint32_t len);
+
+// Returns number of bytes read
+uint32_t i2cRead(I2C_TypeDef *i2c, uint8_t addr, uint8_t *rxBuffer,
+                 uint32_t numBytes);
 
 #endif

@@ -211,4 +211,6 @@ static inline void rccDisableAPB1SMENR(uint32_t mask) {
 #define rccDisableDACSM() rccDisableAPB1SMENR(RCC_APB1SMENR_DACSMEN)
 #define rccDisableLPTIM1SM() rccDisableAPB1SMENR(RCC_APB1SMENR_LPTIM1SMEN)
 
+void rccEnableHSI48(void);
+
 #endif

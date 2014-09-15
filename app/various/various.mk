@@ -1,2 +1,2 @@
 VARIOUSINC = app/various/
-VARIOUSSRC = 
+VARIOUSSRC = app/various/various.c

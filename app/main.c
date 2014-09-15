@@ -3,6 +3,7 @@
 
 #include "lld.h"
 #include "gde021a1.h"
+#include "printf.h"
 
 
 #define RED_LED GPIOA, 5
@@ -12,35 +13,8 @@
 #define COLOR_SDA GPIOB, 7
 #define COLOR_INT GPIOB, 12
 
-#define COLOR_ADDR 0x29
-#define COLOR_COMMAND 0x00
-#define COLOR_COMMAND_CMD 0x80
-#define COLOR_COMMAND_AUTOINC 0x20
-
-#define COLOR_ENABLE 0x00
-#define COLOR_ENABLE_AIEN 0x10
-#define COLOR_ENABLE_AEN 0x02
-#define COLOR_ENABLE_PON 0x01
-
-#define COLOR_ATIME 0x01
-#define COLOR_ATIME_DEFAULT 0xFC
-
-#define COLOR_CTRL 0x0F
-#define COLOR_CTRL_AGAIN_X1 0x00
-#define COLOR_CTRL_AGAIN_X4 0x01
-#define COLOR_CTRL_AGAIN_X16 0x02
-#define COLOR_CTRL_AGAIN_X64 0x03
-
-#define COLOR_ID 0x12
-#define COLOR_ID_TCS34725 0x44
-
-#define COLOR_STATUS 0x13
-#define COLOR_STATUS_VALID 0x01
-#define COLOR_CLEAR_LOW 0x14
-
-#define COLOR_RED_THRESHOLD 0x400
-#define COLOR_GREEN_THRESHOLD 0x380
-#define COLOR_BLUE_THRESHOLD 0x800
+#define USART_TX GPIOA, 9
+#define USART_RX GPIOA, 10
 
 static volatile uint32_t delayTime = 0;
 volatile uint32_t ticks = 0;
@@ -64,6 +38,10 @@ void delay(uint32_t delayMillis) {
     while(delayTime > 0);
 }
 
+void printfPutC(void *p, char c) {
+    usartPutChar((USART_TypeDef *)p, (uint8_t)c);
+}
+
 int main() {
     if (SysTick_Config(SystemCoreClock/1000)) {
         while(1);
@@ -74,15 +52,14 @@ int main() {
     gpioPinMode(GREEN_LED, gpioMode_output);
     gpioPinMode(RED_LED, gpioMode_output);
 
-    gpioOutputType(COLOR_SCL, gpioOutputType_openDrain);
-    gpioOutputType(COLOR_SDA, gpioOutputType_openDrain);
-    gpioPinMode(COLOR_SCL, gpioMode_alternate);
-    gpioPinMode(COLOR_SDA, gpioMode_alternate);
-    gpioAlternate(COLOR_SCL, 1);
-    gpioAlternate(COLOR_SDA, 1);
+    gpioPinMode(USART_RX, gpioMode_alternate);
+    gpioPinMode(USART_TX, gpioMode_alternate);
+    gpioAlternate(USART_RX, 4);
+    gpioAlternate(USART_TX, 4);
 
 
-    I2C_TypeDef *colori2c = I2C1;
+    usartInit(USART1, 115200);
+    init_printf((void *)USART1, printfPutC);
 
     gde021a1Init();
 
@@ -131,6 +108,7 @@ int main() {
         }
 
         gpioTogglePin(GREEN_LED);
+        printf("Hello World!\r\n");
     }
 
     return 0;

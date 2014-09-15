@@ -79,7 +79,7 @@ uint32_t i2cWrite(I2C_TypeDef *i2c, uint32_t addr, uint8_t *txBuffer,
     while(i2c->CR2 & I2C_CR2_START);
     uint8_t done = 0;
     uint32_t i = 0;
-    while (!done && i < 0x00000FFF) {
+    while (!done && i < 0x0000001F) {
         i++;
         if (i2c->ISR & I2C_ISR_NACKF) {
             // Was not acknowledged, disable device and exit
@@ -94,6 +94,7 @@ uint32_t i2cWrite(I2C_TypeDef *i2c, uint32_t addr, uint8_t *txBuffer,
 
             assert(numTxBytes <= len);
             i = 0;
+
         }
 
         if (i2c->ISR & I2C_ISR_TC) {
@@ -140,7 +141,7 @@ uint32_t i2cRead(I2C_TypeDef *i2c, uint8_t addr, uint8_t *rxBuffer,
     while(i2c->CR2 & I2C_CR2_START);
     uint8_t done = 0;
     uint32_t i = 0;
-    while (!done && i < 0x00000FFF) {
+    while (!done && i < 0x0000001F) {
         i++;
 
         if (i2c->ISR & I2C_ISR_RXNE) {
@@ -150,6 +151,7 @@ uint32_t i2cRead(I2C_TypeDef *i2c, uint8_t addr, uint8_t *rxBuffer,
             }
 
             assert(numRxBytes <= numBytes);
+
             i = 0;
         }
 

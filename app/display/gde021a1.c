@@ -190,6 +190,33 @@ static void refreshDisplay() {
     gde021a1WriteRegArray(EPD_REG_32, NULL, 0);
 }
 
+static void setRamPointer(uint8_t x, uint8_t y) {
+    writeReg(EPD_REG_78, x); // Set RAM X Address counter
+    writeReg(EPD_REG_79, y); // Set RAM Y Address counter
+}
+
+
+//This function will set the drawing window and initialize
+//The ram pointer such that it is located at X,Y
+static void setDrawingWindow (uint8_t x, uint8_t y, uint8_t width,
+                              uint8_t height) {
+    // This sets the start and end addresses in the X direction
+    // RAM X address start = 0x00
+    // RAM X address end = 0x11 (17 * 4 px/addr = 72 pixels)
+    uint8_t temp[2] = {x, x + height - 1};
+    gde021a1WriteRegArray(EPD_REG_68, temp, 2);
+    // This sets the start and end addresses in the Y direction
+    // RAM Y address start = 0x00
+    // RAM Y address end = 0xAB
+    temp[0] = y;
+    temp[1] = y + width - 1;
+    gde021a1WriteRegArray(EPD_REG_69, temp, 2);
+
+    setRamPointer(x,y);
+}
+
+
+
 void gde021a1Test() {
 
     uint8_t i = 0;
@@ -197,26 +224,76 @@ void gde021a1Test() {
     uint8_t col = 0;
     gde021a1WriteRegArray(EPD_REG_36, NULL, 0);
     dataMode();
-    for (col = 0; col < 172; col++) {
-        for (row = 0; row < 18; row++) {
+    for (col = 0; col < GDE021A1_EPD_PIXEL_WIDTH; col++) {
+        for (row = 0; row < GDE021A1_EPD_PIXEL_HEIGHT; row++) {
             // Checkerboard
-            if (((col / 2) % 2) < 1) {
-                i = 0x0F;    
-            } else {
-                i = 0xF0;
-            }
+            // if (((col / 2) % 2) < 1) {
+            //     i = 0x0F;
+            // } else {
+            //     i = 0xF0;
+            // }
 
             // 4px bars
-            if ((row % 2) > 0) {
-                i = 0xFF;
-            } else {
+            // if ((row % 2) > 0) {
+            //     i = 0xFF;
+            // } else {
+            //     i = 0x00;
+            // }
+            i = 0xFF;
+            if (row == 0 && col < 4) {
+                i = 0x00;
+            } else if (row == GDE021A1_EPD_PIXEL_HEIGHT- 1 && col < 4){
+                i = 0x00;
+            } else if (col > GDE021A1_EPD_PIXEL_WIDTH - 5 &&
+                        row == GDE021A1_EPD_PIXEL_HEIGHT - 1) {
+                i = 0x00;
+            } else if (col > GDE021A1_EPD_PIXEL_WIDTH - 5 &&
+                        row == 0) {
                 i = 0x00;
             }
-            // i = 0xFF;
+
+
+
             spiSendReceive(dispSPI,1, &i, NULL, DISP_CS);
-            
         }
     }
     refreshDisplay();
+
+    uint32_t delay = 0;
+    for (delay = 0; delay < 0x0004FFFF; delay++);
+    gde021a1WriteRegArray(EPD_REG_36, NULL, 0);
+    dataMode();
+    for (col = 0; col < GDE021A1_EPD_PIXEL_WIDTH; col++) {
+        for (row = 0; row < GDE021A1_EPD_PIXEL_HEIGHT; row++) {
+            i = 0xFF;
+            if (row == 0 && col < 4) {
+                i = 0x00;
+            } else if (row == GDE021A1_EPD_PIXEL_HEIGHT- 1 && col < 4){
+                i = 0x00;
+            } else if (col > GDE021A1_EPD_PIXEL_WIDTH - 5 &&
+                        row == GDE021A1_EPD_PIXEL_HEIGHT - 1) {
+                i = 0x00;
+            } else if (col > GDE021A1_EPD_PIXEL_WIDTH - 5 &&
+                        row == 0) {
+                i = 0x00;
+            }
+
+            spiSendReceive(dispSPI,1, &i, NULL, DISP_CS);
+        }
+    }
+
+    setDrawingWindow(2, 4, 4, 1);
+    gde021a1WriteRegArray(EPD_REG_36, NULL, 0);
+    dataMode();
+    for (col = 0; col < 4; col++) {
+        for (row = 0; row < 1; row++) {
+            i = 0x00;
+            spiSendReceive(dispSPI,1, &i, NULL, DISP_CS);
+        }
+    }
+
+    refreshDisplay();
+    for (delay = 0; delay < 0x0008FFFF; delay++);
+    // refreshDisplay();
 }
 

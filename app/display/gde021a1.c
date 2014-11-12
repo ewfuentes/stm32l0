@@ -8,8 +8,8 @@
 #define DISP_MOSI   GPIOB, 5
 #define DISP_POWER  GPIOB, 10
 
-#define  GDE021A1_EPD_PIXEL_WIDTH    ((uint16_t)172)
-#define  GDE021A1_EPD_PIXEL_HEIGHT   ((uint16_t)18)
+#define  SSD_PIXEL_WIDTH    (PIXEL_WIDTH)
+#define  SSD_PIXEL_HEIGHT   (PIXEL_HEIGHT / 4)
 
 #define EPD_REG_0             0x00   /* Status Read */
 #define EPD_REG_1             0x01   /* Driver Output Control */
@@ -43,10 +43,10 @@
 #define EPD_REG_58            0x3A   /* Set dummy line pulse period */
 #define EPD_REG_59            0x3B   /* Set Gate line width */
 #define EPD_REG_60            0x3C   /* Select Border waveform */
-#define EPD_REG_68            0x44   /* Set RAM X - Address Start / End Position */
-#define EPD_REG_69            0x45   /* Set RAM Y - Address Start / End Position */
-#define EPD_REG_78            0x4E   /* Set RAM X Address Counter */
-#define EPD_REG_79            0x4F   /* Set RAM Y Address Counter */
+#define EPD_REG_68            0x44   /* Set RAM Y - Address Start / End Position */
+#define EPD_REG_69            0x45   /* Set RAM X - Address Start / End Position */
+#define EPD_REG_78            0x4E   /* Set RAM Y Address Counter */
+#define EPD_REG_79            0x4F   /* Set RAM X Address Counter */
 #define EPD_REG_240           0xF0   /* Booster Set Internal Feedback Selection */
 #define EPD_REG_255           0xFF   /* NOP */
 
@@ -67,6 +67,11 @@ const uint8_t WF_LUT[]={
 
 SPI_TypeDef *dispSPI = SPI1;
 static const uint32_t SPI_BAUDRATE = 500000;
+
+// I can initialize this to something other than black, but then it takes up
+// more code space.
+static uint8_t screenBuf[SSD_PIXEL_WIDTH][SSD_PIXEL_HEIGHT] = 
+    {[0 ... (SSD_PIXEL_WIDTH - 1)] = {[0 ... (SSD_PIXEL_HEIGHT- 1)] = 0x00}};
 
 // Prototypes
 static void writeReg(uint8_t cmd, uint8_t data);
@@ -142,15 +147,15 @@ void gde021a1Init() {
     uint8_t temp[2] = {0x00, 0x11};
     gde021a1WriteRegArray(EPD_REG_68, temp, 2);
     
-    // This sets the start and end addresses in the Y direction
+    // This sets the start and end addresses in the X direction
     // RAM Y address start = 0x00
     // RAM Y address end = 0xAB
     temp[0] = 0x00;
     temp[1] = 0xAB;
     gde021a1WriteRegArray(EPD_REG_69, temp, 2);
     
-    writeReg(EPD_REG_78, 0x00); // Set RAM X Address counter
-    writeReg(EPD_REG_79, 0x00); // Set RAM Y Address counter
+    writeReg(EPD_REG_78, 0x00); // Set RAM Y Address counter
+    writeReg(EPD_REG_79, 0x00); // Set RAM X Address counter
     writeReg(EPD_REG_240, 0x1F); // Booster Set Internal Feedback Selection
     writeReg(EPD_REG_33, 0x03); // Disable RAM bypass and set GS transition
                                 // to GSA = GS0 and GSB = GS3
@@ -191,10 +196,9 @@ static void refreshDisplay() {
 }
 
 static void setRamPointer(uint8_t x, uint8_t y) {
-    writeReg(EPD_REG_78, x); // Set RAM X Address counter
-    writeReg(EPD_REG_79, y); // Set RAM Y Address counter
+    writeReg(EPD_REG_78, y); // Set RAM Y Address counter
+    writeReg(EPD_REG_79, x); // Set RAM X Address counter
 }
-
 
 //This function will set the drawing window and initialize
 //The ram pointer such that it is located at X,Y
@@ -203,97 +207,57 @@ static void setDrawingWindow (uint8_t x, uint8_t y, uint8_t width,
     // This sets the start and end addresses in the X direction
     // RAM X address start = 0x00
     // RAM X address end = 0x11 (17 * 4 px/addr = 72 pixels)
-    uint8_t temp[2] = {x, x + height - 1};
+    uint8_t temp[2] = {y, y + height - 1};
     gde021a1WriteRegArray(EPD_REG_68, temp, 2);
     // This sets the start and end addresses in the Y direction
     // RAM Y address start = 0x00
     // RAM Y address end = 0xAB
-    temp[0] = y;
-    temp[1] = y + width - 1;
+    temp[0] = x;
+    temp[1] = x + width - 1;
     gde021a1WriteRegArray(EPD_REG_69, temp, 2);
 
     setRamPointer(x,y);
 }
 
-
-
-void gde021a1Test() {
-
-    uint8_t i = 0;
-    uint8_t row = 0;
-    uint8_t col = 0;
-    gde021a1WriteRegArray(EPD_REG_36, NULL, 0);
-    dataMode();
-    for (col = 0; col < GDE021A1_EPD_PIXEL_WIDTH; col++) {
-        for (row = 0; row < GDE021A1_EPD_PIXEL_HEIGHT; row++) {
-            // Checkerboard
-            // if (((col / 2) % 2) < 1) {
-            //     i = 0x0F;
-            // } else {
-            //     i = 0xF0;
-            // }
-
-            // 4px bars
-            // if ((row % 2) > 0) {
-            //     i = 0xFF;
-            // } else {
-            //     i = 0x00;
-            // }
-            i = 0xFF;
-            if (row == 0 && col < 4) {
-                i = 0x00;
-            } else if (row == GDE021A1_EPD_PIXEL_HEIGHT- 1 && col < 4){
-                i = 0x00;
-            } else if (col > GDE021A1_EPD_PIXEL_WIDTH - 5 &&
-                        row == GDE021A1_EPD_PIXEL_HEIGHT - 1) {
-                i = 0x00;
-            } else if (col > GDE021A1_EPD_PIXEL_WIDTH - 5 &&
-                        row == 0) {
-                i = 0x00;
-            }
-
-
-
-            spiSendReceive(dispSPI,1, &i, NULL, DISP_CS);
-        }
+void fillScreenBuf(pixVal_t val) {
+    uint32_t i = 0;
+    for (i = 0; i < SSD_PIXEL_WIDTH * SSD_PIXEL_HEIGHT; i++) {
+        // A little indexing abuse...
+        // screenBuf[1][0] is the same as screenBuf[0][SSD_PIXEL_HEIGHT]
+        screenBuf[0][i] = (val << 6) | (val << 4) | (val << 2) | val;
     }
-    refreshDisplay();
-
-    uint32_t delay = 0;
-    for (delay = 0; delay < 0x0004FFFF; delay++);
-    gde021a1WriteRegArray(EPD_REG_36, NULL, 0);
-    dataMode();
-    for (col = 0; col < GDE021A1_EPD_PIXEL_WIDTH; col++) {
-        for (row = 0; row < GDE021A1_EPD_PIXEL_HEIGHT; row++) {
-            i = 0xFF;
-            if (row == 0 && col < 4) {
-                i = 0x00;
-            } else if (row == GDE021A1_EPD_PIXEL_HEIGHT- 1 && col < 4){
-                i = 0x00;
-            } else if (col > GDE021A1_EPD_PIXEL_WIDTH - 5 &&
-                        row == GDE021A1_EPD_PIXEL_HEIGHT - 1) {
-                i = 0x00;
-            } else if (col > GDE021A1_EPD_PIXEL_WIDTH - 5 &&
-                        row == 0) {
-                i = 0x00;
-            }
-
-            spiSendReceive(dispSPI,1, &i, NULL, DISP_CS);
-        }
-    }
-
-    setDrawingWindow(2, 4, 4, 1);
-    gde021a1WriteRegArray(EPD_REG_36, NULL, 0);
-    dataMode();
-    for (col = 0; col < 4; col++) {
-        for (row = 0; row < 1; row++) {
-            i = 0x00;
-            spiSendReceive(dispSPI,1, &i, NULL, DISP_CS);
-        }
-    }
-
-    refreshDisplay();
-    for (delay = 0; delay < 0x0008FFFF; delay++);
-    // refreshDisplay();
 }
 
+void setPixel(uint8_t x, uint8_t y, pixVal_t val) {
+    uint8_t shift  = 2 * (3 - (y % 4));
+    screenBuf[x][y/4] &= ~ (0x3 << shift);
+    screenBuf[x][y/4] |= val << shift;
+}
+
+void drawScreenBuffer() {
+    setDrawingWindow(0,0,SSD_PIXEL_WIDTH, SSD_PIXEL_HEIGHT);
+    gde021a1WriteRegArray(EPD_REG_36, NULL, 0);
+    dataMode();
+    spiSendReceive(dispSPI,SSD_PIXEL_WIDTH*SSD_PIXEL_HEIGHT,
+                    &screenBuf[0][0], NULL, DISP_CS);
+    refreshDisplay();
+}
+
+void gde021a1Test() {
+    fillScreenBuf(pixVal_white);
+    uint8_t i = 0; 
+    for (i = 0; i < PIXEL_HEIGHT; i++) {
+        setPixel(10, i, pixVal_black);
+        setPixel(PIXEL_WIDTH - 10, i, pixVal_black);
+    }
+
+    for (i = 0; i < PIXEL_WIDTH; i++) {
+        setPixel(i, 10, pixVal_lgray);
+        setPixel(i, PIXEL_HEIGHT - 8, pixVal_black);
+        setPixel(i, PIXEL_HEIGHT - 9, pixVal_black);
+        setPixel(i, PIXEL_HEIGHT - 10, pixVal_dgray);
+        setPixel(i, PIXEL_HEIGHT - 11, pixVal_black);
+        setPixel(i, PIXEL_HEIGHT - 12, pixVal_black);
+    }
+    drawScreenBuffer();
+}
